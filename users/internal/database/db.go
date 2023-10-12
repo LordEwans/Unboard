@@ -9,6 +9,7 @@ import (
 	"github.com/bottlehub/unboard/users/configs"
 	"github.com/bottlehub/unboard/users/graph/model"
 	"github.com/bottlehub/unboard/users/internal"
+	"github.com/bottlehub/unboard/users/internal/mq"
 	"github.com/machinebox/graphql"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -224,6 +225,7 @@ func (db *DB) UpdateUser(ID string, input *model.UpdateUser) (*model.User, error
 		arr := user1.ChatBoards
 		arr = append(arr, chatboard)
 		updateInfo["chatboards"] = arr
+		mq.Publish("updateChatboard", fmt.Sprintf("updatedID: %s, updatingID: %s", *input.ChatBoard, ID))
 	}
 
 	results := db.updateHelper("users", ID, updateInfo)
