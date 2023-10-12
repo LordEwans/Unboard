@@ -112,16 +112,6 @@ func (db *DB) updateHelper(collectionName, ID string, info bson.M) *mongo.Single
 	return results
 }
 
-func (db *DB) queryHelper(client *graphql.Client, query string) *model.Chatboard {
-	var response model.Chatboard
-	request := graphql.NewRequest(query)
-	if err := client.Run(context.Background(), request, &response); err != nil {
-		internal.Handle(err)
-	}
-
-	return &response
-}
-
 func (db *DB) CreateUser(input *model.NewUser) (*model.User, error) {
 	res, err := db.resErrHelper("users", input)
 
@@ -220,12 +210,16 @@ func (db *DB) UpdateUser(ID string, input *model.UpdateUser) (*model.User, error
 		if err != nil {
 			log.Fatal(err)
 		}
-		chatboard := db.queryHelper(client, query)
+		var chatboard *model.Chatboard
+		request := graphql.NewRequest(query)
+		if err := client.Run(context.Background(), request, &chatboard); err != nil {
+			internal.Handle(err)
+		}
 
 		arr := user1.ChatBoards
 		arr = append(arr, chatboard)
 		updateInfo["chatboards"] = arr
-		mq.Publish("updateChatboard", fmt.Sprintf("updatedID: %s, updatingID: %s", *input.ChatBoard, ID))
+		mq.Publish("update-chatboard", fmt.Sprintf("updatedID: %s, updatingID: %s", *input.ChatBoard, ID))
 	}
 
 	results := db.updateHelper("users", ID, updateInfo)
