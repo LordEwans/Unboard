@@ -2,10 +2,13 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/bottlehub/unboard/boards/graph"
+	"github.com/bottlehub/unboard/boards/internal"
 	"github.com/bottlehub/unboard/boards/internal/mq"
 	"github.com/bottlehub/unboard/boards/internal/router"
 	"github.com/gin-gonic/gin"
@@ -49,7 +52,20 @@ func main() {
 
 	go route.GET("/")
 	go route.POST("/query", graphqlHandler())
-	go route.GET("/graphql", playgroundHandler())
+	go route.GET("/graphql/key=:key", func(c *gin.Context) {
+		res, err := http.Get(fmt.Sprintf("https://api-key-generator-z1ge.onrender.com/verify/unboard-boards/key=%s", c.Param("key")))
+		internal.Handle(err)
+
+		d, err := io.ReadAll(res.Body)
+		internal.Handle(err)
+
+		if string(d) != "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"status": 401, "message": "Authentication failed"})
+			log.Panicf("res: %s", string(d))
+		}
+
+	}, playgroundHandler())
+
 	go mq.Consume("TestQueue", func(s string) {
 		fmt.Println(s)
 	})
